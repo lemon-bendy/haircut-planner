@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Haircut Planner</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a22;
+    --surface2: #22222e;
+    --border: #2e2e3e;
+    --text: #e8e8f0;
+    --text-muted: #7878a0;
+    --accent-event: #4a9eff;
+    --accent-event-bg: #1a3a5c;
+    --accent-haircut: #48c78e;
+    --accent-haircut-bg: #0f3325;
+    --green: #48c78e;
+    --yellow: #f5a623;
+    --red: #f14668;
+    --today-ring: #9b8fff;
+    --radius: 8px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+    color: var(--text);
+  }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .mode-btn {
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mode-btn:hover { border-color: var(--text-muted); color: var(--text); }
+
+  .mode-btn.active-event {
+    background: var(--accent-event-bg);
+    border-color: var(--accent-event);
+    color: var(--accent-event);
+  }
+
+  .mode-btn.active-haircut {
+    background: var(--accent-haircut-bg);
+    border-color: var(--accent-haircut);
+    color: var(--accent-haircut);
+  }
+
+  .mode-btn.active-clear {
+    background: #2e1a1a;
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .threshold-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    padding-left: 12px;
+    border-left: 1px solid var(--border);
+  }
+
+  .threshold-wrap label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .threshold-wrap input {
+    width: 52px;
+    padding: 6px 8px;
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.875rem;
+    text-align: center;
+  }
+
+  .threshold-wrap input:focus {
+    outline: none;
+    border-color: var(--today-ring);
+  }
+
+  /* Main layout */
+  .main {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    width: 100%;
+    max-width: 900px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* Calendar */
+  .calendar-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    min-width: 320px;
+    flex: 0 0 auto;
+  }
+
+  .cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .cal-header h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .nav-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.15s;
+    line-height: 1;
+  }
+
+  .nav-btn:hover { color: var(--text); border-color: var(--text-muted); }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+  }
+
+  .dow-label {
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 4px 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.1s;
+    position: relative;
+    min-width: 0;
+    padding: 2px;
+    gap: 2px;
+    user-select: none;
+  }
+
+  .day:hover { background: var(--surface2); }
+  .day.empty { cursor: default; pointer-events: none; }
+
+  .day.today {
+    border-color: var(--today-ring);
+    color: var(--today-ring);
+  }
+
+  .day.has-event {
+    background: var(--accent-event-bg);
+    border-color: var(--accent-event);
+    color: var(--accent-event);
+  }
+
+  .day.has-haircut {
+    background: var(--accent-haircut-bg);
+    border-color: var(--accent-haircut);
+    color: var(--accent-haircut);
+  }
+
+  .day.has-event.has-haircut {
+    background: linear-gradient(135deg, var(--accent-haircut-bg) 50%, var(--accent-event-bg) 50%);
+    border-color: var(--accent-haircut);
+  }
+
+  .day-num {
+    font-size: 0.8rem;
+    line-height: 1;
+  }
+
+  .day-icons {
+    display: flex;
+    gap: 1px;
+    font-size: 0.55rem;
+    line-height: 1;
+    height: 10px;
+    align-items: center;
+  }
+
+  .day-icon-event { color: var(--accent-event); }
+  .day-icon-haircut { color: var(--accent-haircut); }
+
+  /* Summary */
+  .summary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    flex: 1;
+    min-width: 280px;
+    max-width: 420px;
+  }
+
+  .summary h3 {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .summary-section + .summary-section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .summary-empty {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  /* Haircut schedule rows */
+  .haircut-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    font-size: 0.85rem;
+  }
+
+  .haircut-row + .haircut-row {
+    border-top: 1px solid var(--border);
+  }
+
+  .hc-date {
+    color: var(--accent-haircut);
+    font-weight: 600;
+    min-width: 70px;
+    font-size: 0.82rem;
+  }
+
+  .hc-arrow {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .hc-gap {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    margin-left: auto;
+    text-align: right;
+  }
+
+  /* Event freshness rows */
+  .event-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 0.85rem;
+  }
+
+  .event-row + .event-row {
+    border-top: 1px solid var(--border);
+  }
+
+  .event-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+
+  .event-dot.green { background: var(--green); }
+  .event-dot.yellow { background: var(--yellow); }
+  .event-dot.red { background: var(--red); }
+
+  .event-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .event-date {
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+
+  .event-detail {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .event-gap {
+    font-size: 0.8rem;
+    font-weight: 600;
+    flex-shrink: 0;
+    text-align: right;
+  }
+
+  .event-gap.green { color: var(--green); }
+  .event-gap.yellow { color: var(--yellow); }
+  .event-gap.red { color: var(--red); }
+
+  .legend {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.73rem;
+    color: var(--text-muted);
+  }
+
+  .legend-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+
+  .legend-dot.green { background: var(--green); }
+  .legend-dot.yellow { background: var(--yellow); }
+  .legend-dot.red { background: var(--red); }
+
+  /* Profile switcher */
+  .profile-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .profile-btn {
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .profile-btn:hover {
+    border-color: var(--text-muted);
+    color: var(--text);
+  }
+
+  .profile-btn.active {
+    background: var(--today-ring);
+    border-color: var(--today-ring);
+    color: #fff;
+  }
+</style>
+</head>
+<body>
+
+<h1>✂ Haircut Planner</h1>
+
+<div class="profile-bar" id="profile-bar"></div>
+
+<div class="toolbar">
+  <button class="mode-btn" id="btn-event" onclick="setMode('event')">
+    <span>📅</span> Event
+  </button>
+  <button class="mode-btn" id="btn-haircut" onclick="setMode('haircut')">
+    <span>✂</span> Haircut
+  </button>
+  <button class="mode-btn" id="btn-clear" onclick="setMode('clear')">
+    <span>✕</span> Clear
+  </button>
+  <div class="threshold-wrap">
+    <label for="threshold-input">Warn after</label>
+    <input type="number" id="threshold-input" min="1" max="365" value="21" onchange="updateThreshold()" oninput="updateThreshold()">
+    <label for="threshold-input">days</label>
+  </div>
+</div>
+
+<div class="main">
+  <div class="calendar-wrap">
+    <div class="cal-header">
+      <button class="nav-btn" onclick="changeMonth(-1)">&#8249;</button>
+      <h2 id="month-label"></h2>
+      <button class="nav-btn" onclick="changeMonth(1)">&#8250;</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+
+  <div class="summary">
+    <div class="summary-section" id="summary-haircuts">
+      <h3>Haircut Schedule</h3>
+      <div id="haircut-list"></div>
+    </div>
+    <div class="summary-section" id="summary-events">
+      <h3>Event Freshness</h3>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot green"></div> Fresh (within threshold)</div>
+        <div class="legend-item"><div class="legend-dot yellow"></div> Getting stale</div>
+        <div class="legend-item"><div class="legend-dot red"></div> Overdue / no haircut</div>
+      </div>
+      <div id="event-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Profiles & State ──────────────────────────────────────────────────────
+const PROFILES = ['Person 1', 'Person 2'];
+const META_KEY = 'haircutPlanner_activeProfile';
+
+let state = {
+  profile: null,
+  events: [],    // ISO date strings YYYY-MM-DD
+  haircuts: [],  // ISO date strings YYYY-MM-DD
+  threshold: 21, // days
+  mode: 'event',
+  viewYear: null,
+  viewMonth: null, // 0-indexed
+};
+
+function storageKey(profile) {
+  return `haircutPlanner_${profile}`;
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(storageKey(state.profile));
+    if (raw) {
+      const saved = JSON.parse(raw);
+      state.events   = saved.events   || [];
+      state.haircuts = saved.haircuts || [];
+      state.threshold = saved.threshold != null ? saved.threshold : 21;
+    } else {
+      state.events = [];
+      state.haircuts = [];
+      state.threshold = 21;
+    }
+  } catch(e) {}
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(storageKey(state.profile), JSON.stringify({
+      events:    state.events,
+      haircuts:  state.haircuts,
+      threshold: state.threshold,
+    }));
+  } catch(e) {}
+}
+
+function switchProfile(name) {
+  state.profile = name;
+  try { localStorage.setItem(META_KEY, name); } catch(e) {}
+  loadState();
+  document.getElementById('threshold-input').value = state.threshold;
+  renderProfileBar();
+  renderCalendar();
+  renderSummary();
+}
+
+function renderProfileBar() {
+  const bar = document.getElementById('profile-bar');
+  bar.innerHTML = '';
+  PROFILES.forEach(name => {
+    const btn = document.createElement('button');
+    btn.className = 'profile-btn' + (name === state.profile ? ' active' : '');
+    btn.textContent = name;
+    btn.onclick = () => switchProfile(name);
+    bar.appendChild(btn);
+  });
+}
+
+// ── Date helpers ───────────────────────────────────────────────────────────
+function toISO(year, month, day) {
+  return `${year}-${String(month + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
+
+function parseISO(str) {
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function todayISO() {
+  const t = new Date();
+  return toISO(t.getFullYear(), t.getMonth(), t.getDate());
+}
+
+function formatDateShort(iso) {
+  const d = parseISO(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function daysBetween(isoA, isoB) {
+  const a = parseISO(isoA);
+  const b = parseISO(isoB);
+  return Math.round((b - a) / 86400000);
+}
+
+function formatGap(days) {
+  if (days < 0) days = Math.abs(days);
+  if (days === 0) return 'same day';
+  if (days < 7) return `${days} day${days !== 1 ? 's' : ''}`;
+  const weeks = Math.floor(days / 7);
+  const rem   = days % 7;
+  if (rem === 0) return `${weeks} week${weeks !== 1 ? 's' : ''}`;
+  return `${weeks}w ${rem}d`;
+}
+
+// ── Mode ───────────────────────────────────────────────────────────────────
+function setMode(m) {
+  state.mode = m;
+  document.getElementById('btn-event').className   = 'mode-btn' + (m === 'event'   ? ' active-event'   : '');
+  document.getElementById('btn-haircut').className = 'mode-btn' + (m === 'haircut' ? ' active-haircut' : '');
+  document.getElementById('btn-clear').className   = 'mode-btn' + (m === 'clear'   ? ' active-clear'   : '');
+}
+
+function updateThreshold() {
+  const val = parseInt(document.getElementById('threshold-input').value, 10);
+  if (!isNaN(val) && val > 0) {
+    state.threshold = val;
+    saveState();
+    renderSummary();
+  }
+}
+
+// ── Day click ──────────────────────────────────────────────────────────────
+function handleDayClick(iso) {
+  const { mode } = state;
+  if (mode === 'event') {
+    const idx = state.events.indexOf(iso);
+    if (idx >= 0) state.events.splice(idx, 1);
+    else state.events.push(iso);
+  } else if (mode === 'haircut') {
+    const idx = state.haircuts.indexOf(iso);
+    if (idx >= 0) state.haircuts.splice(idx, 1);
+    else state.haircuts.push(iso);
+  } else if (mode === 'clear') {
+    state.events   = state.events.filter(d => d !== iso);
+    state.haircuts = state.haircuts.filter(d => d !== iso);
+  }
+  saveState();
+  renderCalendar();
+  renderSummary();
+}
+
+// ── Calendar ───────────────────────────────────────────────────────────────
+function changeMonth(delta) {
+  state.viewMonth += delta;
+  if (state.viewMonth > 11) { state.viewMonth = 0;  state.viewYear++;  }
+  if (state.viewMonth <  0) { state.viewMonth = 11; state.viewYear--;  }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const { viewYear: y, viewMonth: m } = state;
+  const today = todayISO();
+
+  document.getElementById('month-label').textContent =
+    new Date(y, m, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+
+  // Day-of-week headers (Sun–Sat)
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'dow-label';
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+
+  const firstDow = new Date(y, m, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+
+  // Empty cells before first day
+  for (let i = 0; i < firstDow; i++) {
+    const el = document.createElement('div');
+    el.className = 'day empty';
+    grid.appendChild(el);
+  }
+
+  const eventSet   = new Set(state.events);
+  const haircutSet = new Set(state.haircuts);
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = toISO(y, m, d);
+    const isEvent   = eventSet.has(iso);
+    const isHaircut = haircutSet.has(iso);
+    const isToday   = iso === today;
+
+    const el = document.createElement('div');
+    let cls = 'day';
+    if (isToday)   cls += ' today';
+    if (isEvent)   cls += ' has-event';
+    if (isHaircut) cls += ' has-haircut';
+    el.className = cls;
+    el.onclick = () => handleDayClick(iso);
+
+    const numEl = document.createElement('div');
+    numEl.className = 'day-num';
+    numEl.textContent = d;
+    el.appendChild(numEl);
+
+    if (isEvent || isHaircut) {
+      const iconsEl = document.createElement('div');
+      iconsEl.className = 'day-icons';
+      if (isHaircut) {
+        const s = document.createElement('span');
+        s.className = 'day-icon-haircut';
+        s.textContent = '✂';
+        iconsEl.appendChild(s);
+      }
+      if (isEvent) {
+        const s = document.createElement('span');
+        s.className = 'day-icon-event';
+        s.textContent = '●';
+        iconsEl.appendChild(s);
+      }
+      el.appendChild(iconsEl);
+    }
+
+    grid.appendChild(el);
+  }
+}
+
+// ── Summary ────────────────────────────────────────────────────────────────
+function renderSummary() {
+  renderHaircutSchedule();
+  renderEventFreshness();
+}
+
+function renderHaircutSchedule() {
+  const sorted = [...state.haircuts].sort();
+  const container = document.getElementById('haircut-list');
+
+  if (sorted.length === 0) {
+    container.innerHTML = '<div class="summary-empty">No haircuts marked yet.</div>';
+    return;
+  }
+
+  if (sorted.length === 1) {
+    const row = document.createElement('div');
+    row.className = 'haircut-row';
+    const date = document.createElement('span');
+    date.className = 'hc-date';
+    date.textContent = '✂ ' + formatDateShort(sorted[0]);
+    const gap = document.createElement('span');
+    gap.className = 'hc-gap';
+    gap.style.color = 'var(--text-muted)';
+    gap.textContent = 'Only haircut';
+    row.append(date, gap);
+    container.innerHTML = '';
+    container.appendChild(row);
+    return;
+  }
+
+  container.innerHTML = '';
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i];
+    const b = sorted[i + 1];
+    const days = daysBetween(a, b);
+
+    const row = document.createElement('div');
+    row.className = 'haircut-row';
+    const dateA = document.createElement('span');
+    dateA.className = 'hc-date';
+    dateA.textContent = '✂ ' + formatDateShort(a);
+    const arrow = document.createElement('span');
+    arrow.className = 'hc-arrow';
+    arrow.textContent = '→';
+    const dateB = document.createElement('span');
+    dateB.className = 'hc-date';
+    dateB.textContent = '✂ ' + formatDateShort(b);
+    const gap = document.createElement('span');
+    gap.className = 'hc-gap';
+    gap.textContent = days + 'd · ' + formatGap(days);
+    row.append(dateA, arrow, dateB, gap);
+    container.appendChild(row);
+  }
+
+}
+
+function renderEventFreshness() {
+  const sortedEvents   = [...state.events].sort();
+  const sortedHaircuts = [...state.haircuts].sort();
+  const container = document.getElementById('event-list');
+  const threshold = state.threshold;
+
+  if (sortedEvents.length === 0) {
+    container.innerHTML = '<div class="summary-empty">No events marked yet.</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+
+  sortedEvents.forEach(eventISO => {
+    // Find most recent haircut on or before the event
+    const prior = sortedHaircuts.filter(h => h <= eventISO);
+    const lastHaircut = prior.length > 0 ? prior[prior.length - 1] : null;
+
+    let colorClass, gapText, detailText;
+
+    if (!lastHaircut) {
+      colorClass = 'red';
+      gapText = 'No haircut';
+      detailText = 'No prior haircut found';
+    } else {
+      const days = daysBetween(lastHaircut, eventISO);
+      gapText = `${days}d · ${formatGap(days)}`;
+      detailText = `Since ✂ ${formatDateShort(lastHaircut)}`;
+      if (days <= threshold) colorClass = 'green';
+      else if (days <= Math.round(threshold * 1.5)) colorClass = 'yellow';
+      else colorClass = 'red';
+    }
+
+    const row = document.createElement('div');
+    row.className = 'event-row';
+    const dot = document.createElement('div');
+    dot.className = 'event-dot ' + colorClass;
+    const info = document.createElement('div');
+    info.className = 'event-info';
+    const dateEl = document.createElement('div');
+    dateEl.className = 'event-date';
+    dateEl.textContent = '📅 ' + formatDateShort(eventISO);
+    const detail = document.createElement('div');
+    detail.className = 'event-detail';
+    detail.textContent = detailText;
+    info.append(dateEl, detail);
+    const gapEl = document.createElement('div');
+    gapEl.className = 'event-gap ' + colorClass;
+    gapEl.textContent = gapText;
+    row.append(dot, info, gapEl);
+    container.appendChild(row);
+  });
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+function init() {
+  // Restore last active profile, default to first
+  let saved = null;
+  try { saved = localStorage.getItem(META_KEY); } catch(e) {}
+  state.profile = PROFILES.includes(saved) ? saved : PROFILES[0];
+
+  const now = new Date();
+  state.viewYear  = now.getFullYear();
+  state.viewMonth = now.getMonth();
+
+  loadState();
+  document.getElementById('threshold-input').value = state.threshold;
+
+  renderProfileBar();
+  setMode('event');
+  renderCalendar();
+  renderSummary();
+}
+
+init();
+</script>
+</body>
+</html>
