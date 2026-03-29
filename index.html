@@ -105,7 +105,7 @@
   }
 
   .threshold-wrap input {
-    width: 52px;
+    width: 68px;
     padding: 6px 8px;
     border-radius: var(--radius);
     border: 1.5px solid var(--border);
@@ -392,43 +392,11 @@
   .legend-dot.yellow { background: var(--yellow); }
   .legend-dot.red { background: var(--red); }
 
-  /* Profile switcher */
-  .profile-bar {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 16px;
-  }
-
-  .profile-btn {
-    padding: 6px 16px;
-    border-radius: 20px;
-    border: 1.5px solid var(--border);
-    background: var(--surface);
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .profile-btn:hover {
-    border-color: var(--text-muted);
-    color: var(--text);
-  }
-
-  .profile-btn.active {
-    background: var(--today-ring);
-    border-color: var(--today-ring);
-    color: #fff;
-  }
 </style>
 </head>
 <body>
 
 <h1>✂ Haircut Planner</h1>
-
-<div class="profile-bar" id="profile-bar"></div>
 
 <div class="toolbar">
   <button class="mode-btn" id="btn-event" onclick="setMode('event')">
@@ -441,7 +409,7 @@
     <span>✕</span> Clear
   </button>
   <div class="threshold-wrap">
-    <label for="threshold-input">Warn after</label>
+    <label for="threshold-input">Haircut becomes stale after</label>
     <input type="number" id="threshold-input" min="1" max="365" value="21" onchange="updateThreshold()" oninput="updateThreshold()">
     <label for="threshold-input">days</label>
   </div>
@@ -475,12 +443,10 @@
 </div>
 
 <script>
-// ── Profiles & State ──────────────────────────────────────────────────────
-const PROFILES = ['Person 1', 'Person 2'];
-const META_KEY = 'haircutPlanner_activeProfile';
+// ── State ─────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'haircutPlanner';
 
 let state = {
-  profile: null,
   events: [],    // ISO date strings YYYY-MM-DD
   haircuts: [],  // ISO date strings YYYY-MM-DD
   threshold: 21, // days
@@ -489,13 +455,9 @@ let state = {
   viewMonth: null, // 0-indexed
 };
 
-function storageKey(profile) {
-  return `haircutPlanner_${profile}`;
-}
-
 function loadState() {
   try {
-    const raw = localStorage.getItem(storageKey(state.profile));
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const saved = JSON.parse(raw);
       state.events   = saved.events   || [];
@@ -511,34 +473,12 @@ function loadState() {
 
 function saveState() {
   try {
-    localStorage.setItem(storageKey(state.profile), JSON.stringify({
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
       events:    state.events,
       haircuts:  state.haircuts,
       threshold: state.threshold,
     }));
   } catch(e) {}
-}
-
-function switchProfile(name) {
-  state.profile = name;
-  try { localStorage.setItem(META_KEY, name); } catch(e) {}
-  loadState();
-  document.getElementById('threshold-input').value = state.threshold;
-  renderProfileBar();
-  renderCalendar();
-  renderSummary();
-}
-
-function renderProfileBar() {
-  const bar = document.getElementById('profile-bar');
-  bar.innerHTML = '';
-  PROFILES.forEach(name => {
-    const btn = document.createElement('button');
-    btn.className = 'profile-btn' + (name === state.profile ? ' active' : '');
-    btn.textContent = name;
-    btn.onclick = () => switchProfile(name);
-    bar.appendChild(btn);
-  });
 }
 
 // ── Date helpers ───────────────────────────────────────────────────────────
@@ -807,11 +747,6 @@ function renderEventFreshness() {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 function init() {
-  // Restore last active profile, default to first
-  let saved = null;
-  try { saved = localStorage.getItem(META_KEY); } catch(e) {}
-  state.profile = PROFILES.includes(saved) ? saved : PROFILES[0];
-
   const now = new Date();
   state.viewYear  = now.getFullYear();
   state.viewMonth = now.getMonth();
@@ -819,7 +754,6 @@ function init() {
   loadState();
   document.getElementById('threshold-input').value = state.threshold;
 
-  renderProfileBar();
   setMode('event');
   renderCalendar();
   renderSummary();
